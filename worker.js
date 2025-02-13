@@ -1,124 +1,175 @@
-const TOKEN = '7695029405:AAFRN2U5NRGYS-ZjpRc54xTxQdOSc0EeYtE';
-const WEBHOOK = '/endpoint';
-const SECRET = 'ENV_BOT_SECRE';
+const TELEGRAM_TOKEN = '7544054473:AAH38dih8OM-ii2_rSp-wJq5rjo2G0upE10';
+const BASE_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+const WEBHOOK_PATH = '/endpoint';
 
-addEventListener('fetch', event => {
-  const url = new URL(event.request.url)
-  if (url.pathname === WEBHOOK) {
-    event.respondWith(handleWebhook(event))
-  } else if (url.pathname === '/registerWebhook') {
-    event.respondWith(registerWebhook(event, url, WEBHOOK, SECRET))
-  } else if (url.pathname === '/unRegisterWebhook') {
-    event.respondWith(unRegisterWebhook(event))
-  } else {
-    event.respondWith(new Response('No handler for this request'))
-  }
-})
-
-async function handleWebhook (event) {
-  if (event.request.headers.get('X-Telegram-Bot-Api-Secret-Token') !== SECRET) {
-    return new Response('Unauthorized', { status: 403 })
-  }
-
-  
-  const update = await event.request.json()
-  event.waitUntil(onUpdate(update))
-
-  return new Response('Ok')
+async function registerWebhook(webhookUrl) {
+    const response = await fetch(`${BASE_URL}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: webhookUrl })
+    });
+    return response;
 }
 
-
-async function onUpdate (update) {
-  if ('message' in update) {
-    await onMessage(update.message)
-  }
+async function unRegisterWebhook() {
+    const response = await fetch(`${BASE_URL}/deleteWebhook`, {
+        method: 'POST'
+    });
+    return response;
 }
 
+async function handleRequest(request) {
+    const url = new URL(request.url);
+    
+    if (request.method === 'GET') {
+        if (url.pathname === '/register') {
+            const webhookUrl = `${url.origin}${WEBHOOK_PATH}`;
+            await registerWebhook(webhookUrl);
+            return new Response(`Webhook registered at: ${webhookUrl}`);
+        }
+        
+        if (url.pathname === '/unregister') {
+            await unRegisterWebhook();
+            return new Response('Webhook unregistered');
+        }
+        
+        return new Response('Send GET to /register or /unregister to manage webhook');
+    }
 
-function onMessage (message) {
-  return sendPlainText(message.chat.id, 'Echo:\n' + message.text)
+    if (request.method === 'POST' && url.pathname === WEBHOOK_PATH) {
+        const update = await request.json();
+        return handleUpdate(update);
+    }
+
+    return new Response('Not Found', { status: 404 });
 }
 
+// Rest of your existing handlers remain the same
+async function handleUpdate(update) {
+    if (update.callback_query) {
+        const data = update.callback_query.data;
+        const chatId = update.callback_query.message.chat.id;
+        const messageId = update.callback_query.message.message_id;
+        
+        if (data === '/Commands') {
+            await deleteMessage(chatId, messageId);
+            await sendCommandsMenu(chatId);
+        }
+        return new Response('OK');
+    }
 
-async function sendPlainText (chatId, text) {
-  return (await fetch(apiUrl('sendMessage', {
-    chat_id: chatId,
-    text
-  }))).json()
+    if (update.message) {
+        const text = update.message.text;
+        const chatId = update.message.chat.id;
+        const user = update.message.from;
+
+        if (text === '/start') {
+            await sendWelcomeMessage(chatId, user);
+        }
+        else if (text === '/Commands') {
+            await deleteMessage(chatId, update.message.message_id);
+            await sendCommandsMenu(chatId);
+        }
+        else if (text === '/about') {
+            await sendAboutMessage(chatId, user);
+        }
+        return new Response('OK');
+    }
+
+    return new Response('OK');
 }
 
+async function sendWelcomeMessage(chatId, user) {
+    const videoUrl = "https://t.me/kajal_developer/57";
+    const buttons = [
+        [{ text: "Commands", callback_data: "/Commands" }],
+        [{ text: "DEV", url: "https://t.me/Teleservices_Api" }]
+    ];
 
-async function registerWebhook (event, requestUrl, suffix, secret) {
+    const caption = `<b>👋 Welcome Back ${user.first_name}</b>\n\n🌥️ Bot Status: Alive 🟢\n\n💞 Dev: @LakshayDied`;
 
-  const webhookUrl = `${requestUrl.protocol}//${requestUrl.hostname}${suffix}`
-  const r = await (await fetch(apiUrl('setWebhook', { url: webhookUrl, secret_token: secret }))).json()
-  return new Response('ok' in r && r.ok ? 'Ok' : JSON.stringify(r, null, 2))
+    await fetch(`${BASE_URL}/sendVideo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            video: videoUrl,
+            caption: caption,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: buttons }
+        })
+    });
 }
 
+async function sendCommandsMenu(chatId) {
+    const videoUrl = "https://t.me/kajal_developer/57"; 
+    const buttons = [
+        [
+            { text: "Gateways", callback_data: "/black" },
+            { text: "Tools", callback_data: "/tools" }
+        ],
+        [
+            { text: "Channel", url: "https://t.me/Teleservices_Api" },
+            { text: "DEV", url: "https://t.me/Teleservices_Bots" }
+        ],
+        [
+            { text: "◀️ Go Back", callback_data: "/black" }
+        ]
+    ];
 
-async function unRegisterWebhook (event) {
-  const r = await (await fetch(apiUrl('setWebhook', { url: '' }))).json()
-  return new Response('ok' in r && r.ok ? 'Ok' : JSON.stringify(r, null, 2))
+    const caption = `<b>[𖤐] XS developer :</b>\n\n<b>[ϟ] Current Gateways And Tools :</b>\n\n<b>[ᛟ] Charge - 0</b>\n<b>[ᛟ] Auth - 0</b>\n<b>[ᛟ] Tools - 2</b>`;
+
+    await fetch(`${BASE_URL}/sendVideo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            video: videoUrl,
+            caption: caption,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: buttons }
+        })
+    });
 }
 
+async function sendAboutMessage(chatId, user) {
+    const aboutMessage = `
+<b><blockquote>⍟───[ MY ᴅᴇᴛᴀɪʟꜱ ]───⍟</blockquote>
 
-function apiUrl (methodName, params = null) {
-  let query = ''
-  if (params) {
-    query = '?' + new URLSearchParams(params).toString()
-  }
-  return `https://api.telegram.org/bot${TOKEN}/${methodName}${query}`
+‣ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/${user.username}">${user.first_name}</a>
+‣ ᴍʏ ʙᴇsᴛ ғʀɪᴇɴᴅ : <a href='tg://settings'>ᴛʜɪs ᴘᴇʀsᴏɴ</a> 
+‣ ᴅᴇᴠᴇʟᴏᴘᴇʀ : <a href='https://t.me/kingvj01'>ᴛᴇᴄʜ ᴠᴊ</a> 
+‣ ʟɪʙʀᴀʀʏ : <a href=''></a> 
+‣ ʟᴀɴɢᴜᴀɢᴇ : <a href=''></a> 
+‣ ᴅᴀᴛᴀ ʙᴀsᴇ : <a href=''></a> 
+‣ ʙᴏᴛ sᴇʀᴠᴇʀ : <a href=''></a> 
+‣ ʙᴜɪʟᴅ sᴛᴀᴛᴜs : ᴠ [sᴛᴀʙʟᴇ]</b>
+    `;
+
+    await fetch(`${BASE_URL}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            text: aboutMessage,
+            parse_mode: 'HTML'
+        })
+    });
 }
 
-// ... (keep previous constants and event listener code)
-
-async function onMessage(message) {
-  if (message.text?.startsWith('/start')) {
-    return sendWelcomeMessage(message.chat.id);
-  } else if (message.text?.startsWith('/help')) {
-    return sendHelpMessage(message.chat.id);
-  } else if (message.text?.startsWith('/video')) {
-    return sendVideoResponse(message.chat.id);
-  }
-  return sendPlainText(message.chat.id, 'Echo:\n' + message.text);
+async function deleteMessage(chatId, messageId) {
+    await fetch(`${BASE_URL}/deleteMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: chatId,
+            message_id: messageId
+        })
+    });
 }
 
-async function sendWelcomeMessage(chatId) {
-  const welcomeText = `👋 Welcome Back\n\n🌥️ Bot Status : Alive 🟢\n\n💞 Dev : @LakshayDied`;
-  
-  const keyboard = {
-    inline_keyboard: [
-      [
-        { text: 'Help', url: 'https://t.me/YourHelpBot' },
-        { text: 'Channel', url: 'https://t.me/YourChannel' }
-      ]
-    ]
-  };
-
-  return sendMessageWithKeyboard(chatId, welcomeText, keyboard);
-}
-
-async function sendHelpMessage(chatId) {
-  const helpText = "🆘 Help Section:\n\n/start - Start the bot\n/help - Show this help\n/video - Get a video";
-  return sendPlainText(chatId, helpText);
-}
-
-async function sendVideoResponse(chatId) {
-  const videoUrl = 'https://example.com/your-video.mp4'; // Replace with actual video URL
-  return sendVideo(chatId, videoUrl);
-}
-
-async function sendMessageWithKeyboard(chatId, text, keyboard) {
-  return (await fetch(apiUrl('sendMessage', {
-    chat_id: chatId,
-    text,
-    reply_markup: JSON.stringify(keyboard)
-  }))).json();
-}
-
-async function sendVideo(chatId, video) {
-  return (await fetch(apiUrl('sendVideo', {
-    chat_id: chatId,
-    video
-  }))).json();
-}
+export default {
+    async fetch(request) {
+        return handleRequest(request);
+    }
+};
