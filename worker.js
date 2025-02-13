@@ -1,6 +1,6 @@
-const TOKEN = 7796187337:AAF-aOcWJzQljSl6RS61ex_htwdzFPt2FvI
-const WEBHOOK = '/endpoint'
-const SECRET = ENV_BOT_SECRE
+const TOKEN = '7695029405:AAFRN2U5NRGYS-ZjpRc54xTxQdOSc0EeYtE';
+const WEBHOOK = '/endpoint';
+const SECRET = 'ENV_BOT_SECRE';
 
 addEventListener('fetch', event => {
   const url = new URL(event.request.url)
