@@ -1,6 +1,0 @@
-name = "new-sumit-bot-potmg"
-main = "worker.js"
-compatibility_date = "2025-02-14"
-
-[build]
-upload.format = "modules"
